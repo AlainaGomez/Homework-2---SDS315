@@ -1,0 +1,217 @@
+---
+title: "Homework 2 - SDS315"
+author: "Alaina Gomez (agg3395)"
+date: "2024-01-23"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    theme: cerulean
+  pdf_document:
+    toc: yes
+---
+
+[**Link to GitHub Repo**](https://github.com/AlainaGomez/Homework-2---SDS315.git)
+
+<!-- Setup and importing files -->
+
+```{r setup, include = FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+profs <- read_csv("profs.csv")
+bikeshare <- read_csv("bikeshare.csv")
+capmetro <- read_csv("capmetro_UT.csv")
+billboard <- read_csv("billboard.csv")
+
+# Recode the categorical variables in sensible, rather than alphabetical, order
+capmetro <- mutate(capmetro,
+day_of_week = factor(day_of_week,
+levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")),
+month = factor(month,
+levels=c("Sep", "Oct","Nov")))
+```
+
+## Problem 1
+
+**Context**: The University of Texas at Austin asked students to evaluate their courses and professors. The profs.csv file contains data on course-instructor evaluation surveys from a sample of 463 UT Austin courses. These data represent evaluations from 25,547 students and most major academic departments. Also included is a rating of each instructor's physical attractiveness, as judged by a panel of six students (3 males, 3 females) who were shown photos of the instructors.
+
+### A
+
+```{r echo = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+ggplot(profs, aes(x = profs$eval)) + geom_histogram(col = "#3b3b3b", fill = "#3b3b3b") + labs(x = "Average Evaluation Score", y = "Frequency", title = "Course Evaluation Scores")
+```
+
+UT professors were rated on a scale of 1 through 5 on the overall teaching of their course. The average teaching evaluation score for the professors was `r round(mean(profs$eval), digits = 2)` out of 5. The lowest rating was `r round(min(profs$eval), digits = 2)` and the highest rating was `r round(max(profs$eval), digits = 2)`. One could conclude that this is a somewhat normal distribution of ratings as the graphs similarity to a "bell" shape.
+
+### B
+
+<!-- distinguish based on native/non-native -->
+
+```{r echo = FALSE, fig.width = 5.5, fig.height = 3.5}
+ggplot(profs, aes(x = profs$native, y = profs$eval)) + geom_boxplot(col = "#3b3b3b", fill = "grey") + labs(x = "Native Speaker", title = "Native and Non-Native Course Evaluation Scores", y = "Average Evaluation Score")
+nonnative <- filter(profs, native == "no")
+native <- filter(profs, native == "yes")
+```
+
+Professors were evaluated on whether they were a native English speaker or not. The average evaluation score for non-native professors was `r round(mean(nonnative$eval), digits=2)` out of 5 and for native professors was `r round(mean(native$eval), digits=2)` out of 5. However, there are only `r nrow (nonnative)` non-native English professors in comparison to the `r nrow(native)` native English professors. While on average non-native professors have lower ratings, one could argue it is unfair to compare this criteria due to the significantly smaller amount of non-native professors.
+
+### C
+
+<!-- faceted based on gender -->
+
+```{r echo = FALSE, warning = FALSE, fig.width = 5.5, fig.height = 3.5}
+ggplot(profs, aes(x = profs$eval)) + geom_histogram(col = "#3b3b3b", fill="#3b3b3b", stat = "count") + facet_wrap(~gender, nrow = 2) + labs(x = "Average Evaluation Score", y = "Frequency", title = "Gender and Course Evaluation Scores")
+male <- filter(profs, gender == "male")
+female <- filter(profs, gender == "female")
+```
+
+The gender of professors was taken into account to compare their average evaluation scores. On average, female professors had an average score of `r round(mean(male$eval), digits=2)` out of 5 and male professors `r round(mean(female$eval), digits=2)` out of 5. Overall, male professors had a better course evaluation score than female professors on average.
+
+### D
+
+```{r echo = FALSE, fig.width = 5.5, fig.height = 3.5}
+ggplot(profs, aes(x = profs$beauty, y = profs$eval)) + geom_point(col = "#3b3b3b") + labs(x = "Average Physical Attractiveness", y = "Average Evaluation Score", title = "Physical Attractiveness and Course Evaluation Scores")
+```
+
+Each professor was provided a physical attractiveness rating on a scale of -2 to 2 with 2 being the most attractive and -2 being the least attractive. Ratings of 0 represent "average" physical attractiveness. There was a correlation of `r round(cor(profs$eval, profs$beauty), digits=2)` between professors average evaluation score and their perceived physical attractiveness. There is a somewhat positive correlation between course evaluation and physical attractiveness, but not strong enough to conclude one leads to the other indefinitely.
+
+\newpage
+
+## Problem 2
+
+**Context**: Bike-sharing systems are a new generation of traditional bike rentals where the whole process from rental to return is automatic. This data set contains a two-year historical log (2011 and 2012) from the Capital Bikeshare system in Washington D.C. This data has been aggregated on an hourly and daily basis and then merged with weather and seasonal data.
+
+### A
+
+<!-- group according to the hour, average bike rentals by the hour -->
+
+```{r echo = FALSE, warning = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+hourlybike <- bikeshare %>%
+              group_by(hr) %>%
+              summarise(total = mean(total))
+  
+ggplot(hourlybike, aes(x = hr, y = total)) + geom_line(col = "#3b3b3b") + labs(y = "Total Rented Bikes", x = "Hour (0-23)", title = "Average Bike Rentals by the Hour")
+```
+
+Bike-rentals were kept on an hourly basis in Washington D.C. The x-axis, hours, is based on military time (0-23 hours). This graph indicates that around hours 8 (8 a.m.) and 18 (6 p.m.) there is a higher demand for bike rentals in the area. The early and late hours of the day, on average, have lower bike rentals. One could conclude that there are large spikes of bike rentals during two times in particular as a result of similar daily schedule (e.g. work).
+
+### B
+
+<!-- grouped by the hour, faceted by working day, average bike rentals by the hour -->
+
+```{r echo = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+hourlybike <- bikeshare %>%
+              group_by(hr,workingday) %>%
+              summarise(total = mean(total))
+ggplot(hourlybike, aes(x=hr, y=total)) + geom_line(col="#3b3b3b") + facet_wrap(~workingday) + labs(x = "Hour (0-23)", y = "Total Rented Bikes", title = "Working or Non-Working Day Average Bike Rentals")
+```
+
+Data was collected on whether the bike rental was neither a holiday or a weekend (1) and otherwise is (0). Days seen as a holiday or weekend (0) had a normal increase and decline of bike rentals throughout the day. On the contrary, days that are considered working days (1) had sharp increases of bike rentals at certain parts of the day. People rented bikes on holiday or weekdays at normal rates, perhaps for leisure, and rented bikes during weekdays at specific times of the day, possibly as a result of work or school.
+
+### C
+
+<!-- faceted by working day, grouped by weather situation -->
+
+```{r echo = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+earlybikes <- filter(bikeshare, hr == "9")
+earlybikes <- earlybikes %>% 
+              group_by(weathersit, workingday) %>%
+              summarise(total = mean(total))
+ggplot(earlybikes, aes(x = weathersit, y = total)) + geom_bar(stat = "identity", col = "#3b3b3b", fill = "#3b3b3b") + labs(x = "Weather Situation Code", y = "Average Bike Rentals") + facet_wrap(~workingday) 
+```
+
+Similarly to part B, 0 represents holidays and/or weekends and 1 represents "working" days. Weather situation code represents the current weather of the city:
+
+1)  Clear, Few clouds, Partly cloudy, Partly cloudy
+
+2)  Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+
+3)  Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+
+4)  Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+
+Non-working days had less bike rentals on average in spite of the increasingly dangerous weather. Working days had continued rentals of bikes despite the weather. Therefore, people rented bikes more on average if it is a working day (school or work).
+
+\newpage
+
+## Problem 3
+
+**Context**: This problem contains data from Austin's own Capital Metro bus network, including shuttles to, from, and around the UT campus. These data track ridership on buses in the UT area.
+
+### Part 1
+
+<!-- faceted by day of the week, grouped by month and hour of the day -->
+
+```{r echo = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+avgboarding <- capmetro %>%
+            group_by(hour_of_day, day_of_week, month) %>%
+            summarise(boardings = mean(boarding))
+ggplot(avgboarding, aes( x =hour_of_day, y = boardings, col = month)) + geom_line() + facet_wrap(~day_of_week) + labs(title = "Avg. Boardings by Hour, Day of the Week, and Month", x = "Hour of the Day", y = "Number of Boardings", color = "Month")
+```
+
+Hours of the day are in military time (0-23) but data was only collected from hours 6 through 21, indicating that the metro bus system is closed/unavailable during other times. Boardings vary based on whether or not it is a weekend; weekdays usually have more boardings per hour than Saturday and Sunday by far. There is a usually similar distribution of boardings by the hour on weekdays. One reason average boardings on Mondays in September look lower, compared to other days and months could be due to the start of a "new" semester for UT students. This would result in lower use of the bus system at first and an increase in frequency afterwards. Similarly, the average boardings on Weds/Thurs/Fri in November look lower due to the ending of a semester and therefore less bus use.
+
+### Part 2
+
+<!-- faceted by hour of the day, distinguished as weekend/weekday -->
+
+```{r echo = FALSE, fig.width = 5.5, fig.height = 3.5}
+ggplot(capmetro, aes(x = temperature, y = boarding, col = weekend)) + geom_point(size = 0.75) + facet_wrap(~hour_of_day) + labs(x = "Temperature (F)", y = "Boardings", title = "Temperature and Boardings by Hour of the Day", color = "Weekend/day")
+```
+
+These plots show the distribution of boardings during certain temperatures. Each individual plot is separated by each hour of the day and indicates whether the point is a weekend or weekday. When holding variables like hour of the day or weekend/weekday, it appears that temperature always has a noticeable effect on the amount of boardings. For instance, the majority of boardings avoid temperatures above 90 degrees and below 40 degrees. Peak boarding times vary greatly, but people will remain to board the bus usually only during comfortable temperatures.
+
+\newpage
+
+## Problem 4
+
+**Context**: This data contains every song to appear on the weekly Billboard Top 100 chart since 1958. Each entry of this data corresponds to a single song in a single week.
+
+### A
+
+```{r echo = FALSE, message = FALSE, fig.width = 5.5, fig.height = 3.5}
+topsongs <- billboard %>%
+            group_by(performer, song) %>%
+            summarise(count = n()) %>%
+            arrange(desc(count))
+
+kable(topsongs[1:10,], format = "html", align = "c") %>%
+  kable_styling("striped", full_width = FALSE)
+```
+
+This table labels the performer, song title, and the total number of weeks a song was in the Billboard Top 100. As shown, "Radioactive" by Imagine Dragons is the most popular song as it appeared in the Billboard Top 100 for 87 weeks. The 10th most popular song was "Before He Cheats" by Carrie Underwood at 64 weeks. While the weeks in the Billboard Top 100 do not indicate the song popularity spot out of the weekly 100 songs, one could infer that these songs remained high in position in comparison to other Top 100 songs.
+
+### B
+
+<!-- checks how many unique songs are in the billboards weekly top 100 are during this time period -->
+
+```{r echo = FALSE, fig.width = 5.5, fig.height = 3.5}
+musicaldiversity <- filter(billboard, year != 1958)
+musicaldiversity <- filter(musicaldiversity, year != 2021)
+uniquesongs <- musicaldiversity %>%
+            group_by(year) %>% 
+            summarise(count = n_distinct(song))
+ggplot(uniquesongs, aes(x = year, y = count)) + geom_line(col = "#3b3b3b") + labs(x = "Year", y = "Count", title = "Number of Unique Billboard Songs over the Years")
+```
+
+This graph shows the number of unique songs that appeared in the Billboard Top 100 that year from 1959-2020. In the 1960s and 1970s there is a clear diversity of songs in the top charts but there is a decline until around the 2000s era. However, the song diversity increases around 2005 and has been increasing ever since then. An interesting trend I see is that the 1980s through 2000s there is a sharp decline in song diversity which is what I expected as during this era, there were defining songs that many people nowadays remember.
+
+### C
+
+<!-- selects on performers with 30+ songs that were in the billboard top 100 for 10+ weeks -->
+
+```{r echo = FALSE, warning = FALSE, fig.width = 5.5, fig.height = 3.5}
+tenweekhit <- filter(topsongs, count >= 10)
+tenweekhit <- tenweekhit %>%
+              group_by(performer) %>%
+              summarise(numofsongs = n()) %>%
+              arrange(desc(numofsongs)) %>%
+              head(19)
+
+ggplot(tenweekhit, aes(x = performer, y = numofsongs)) + geom_bar(stat = "identity",, col = "#3b3b3b", fill = "#3b3b3b") + theme(axis.text.x = element_text(angle = 50, hjust = 1)) + labs(x = "Performer", y = "Number of Songs", title = "Artists with 30+ 10-week Top 100 Billboard Songs")
+```
+
+The graphs show the number of songs that an artist had on the Top 100 Billboard that was on there for at least 10 weeks. According to the graph, Elton John had the most 10-week Top 100 Billboard Songs. This would make sense as this data is from 1959-2020 and Elton John is one of the most well known artists during this time period.
